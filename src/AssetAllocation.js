@@ -126,8 +126,8 @@ function AssetAllocation() {
         <tbody>
           {allocations.map(a => (
             <tr key={a.allocation_id}>
-              <td>{a.employee_name}</td>
-              <td>{a.asset_name}</td>
+              <td>{a.employee_id}</td>
+              <td>{a.asset_id}</td>
               <td>{a.allocated_quantity}</td>
               <td>
                 <button onClick={() => editAllocation(a)}>Edit</button>
