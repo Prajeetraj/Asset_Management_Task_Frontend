@@ -14,6 +14,10 @@ function Employee() {
     sort_order: 0
   });
 
+  //  REGEX VALIDATION
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const phoneRegex = /^[6-9]\d{9}$/;
+
   // LOAD EMPLOYEES
   const loadEmployees = () => {
     fetch("http://localhost:3001/employee")
@@ -32,6 +36,18 @@ function Employee() {
   // ADD EMPLOYEE
   const addEmployee = async (e) => {
     e.preventDefault();
+
+    //  Email Validation
+    if (!emailRegex.test(form.email)) {
+      alert("Please enter valid email address");
+      return;
+    }
+
+    // Mobile Validation
+    if (!phoneRegex.test(form.mobile)) {
+      alert("Please enter valid 10-digit mobile number");
+      return;
+    }
 
     const res = await fetch("http://localhost:3001/employee", {
       method: "POST",
@@ -72,6 +88,18 @@ function Employee() {
   // UPDATE EMPLOYEE
   const updateEmployee = async (e) => {
     e.preventDefault();
+
+    //  Email Validation
+    if (!emailRegex.test(form.email)) {
+      alert("Please enter valid email address");
+      return;
+    }
+
+    //  Mobile Validation
+    if (!phoneRegex.test(form.mobile)) {
+      alert("Please enter valid 10-digit mobile number");
+      return;
+    }
 
     const res = await fetch(
       `http://localhost:3001/employee/${editId}`,
@@ -205,4 +233,5 @@ function Employee() {
 }
 
 export default Employee;
+
 

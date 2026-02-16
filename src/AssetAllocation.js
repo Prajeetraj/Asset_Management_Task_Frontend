@@ -25,16 +25,33 @@ function AssetAllocation() {
 
   const fetchAssets = async () => {
     const res = await fetch("http://localhost:3001/asset");
-    setAssets(await res.json());
+    const data = await res.json();
+    setAssets(data);
   };
 
   const fetchAllocations = async () => {
     const res = await fetch("http://localhost:3001/asset-allocation");
-    setAllocations(await res.json());
+    const data = await res.json();
+    setAllocations(data);
   };
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    // If selecting a unique asset, auto-set quantity = 1
+    if (name === "asset_id") {
+      const selectedAsset = assets.find(a => a.asset_id === Number(value));
+      if (selectedAsset?.track_type === "Unique") {
+        setForm({
+          ...form,
+          asset_id: Number(value),
+          allocated_quantity: 1
+        });
+        return;
+      }
+    }
+
+    setForm({ ...form, [name]: name === "asset_id" ? Number(value) : value });
   };
 
   const submitAllocation = async (e) => {
@@ -46,15 +63,21 @@ function AssetAllocation() {
 
     const method = editId ? "PUT" : "POST";
 
-    await fetch(url, {
+    const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form)
     });
 
+    if (!res.ok) {
+      const error = await res.json();
+      return alert(error.message);
+    }
+
     setForm({ employee_id: "", asset_id: "", allocated_quantity: "" });
     setEditId(null);
     fetchAllocations();
+    fetchAssets(); // refresh available assets
   };
 
   const editAllocation = (a) => {
@@ -65,6 +88,15 @@ function AssetAllocation() {
     });
     setEditId(a.allocation_id);
   };
+
+  // Filter assets for dropdown (Unique assets already allocated are removed)
+  const availableAssets = assets.filter(a => {
+    if (a.track_type === "Unique") {
+      const allocated = allocations.find(al => al.asset_id === a.asset_id);
+      return !allocated;
+    }
+    return true; // Bulk assets remain available
+  });
 
   return (
     <div>
@@ -77,7 +109,7 @@ function AssetAllocation() {
           onChange={handleChange}
           required
         >
-          <option value="">Employee</option>
+          <option value="">Select Employee</option>
           {employees.map(e => (
             <option key={e.employee_id} value={e.employee_id}>
               {e.employee_name}
@@ -91,10 +123,10 @@ function AssetAllocation() {
           onChange={handleChange}
           required
         >
-          <option value="">Asset</option>
-          {assets.map(a => (
+          <option value="">Select Asset</option>
+          {availableAssets.map(a => (
             <option key={a.asset_id} value={a.asset_id}>
-              {a.asset_name}
+              {a.asset_name} {a.track_type === "Unique" ? "(Unique)" : ""}
             </option>
           ))}
         </select>
@@ -105,6 +137,10 @@ function AssetAllocation() {
           value={form.allocated_quantity}
           onChange={handleChange}
           required
+          min={1}
+          disabled={
+            assets.find(a => a.asset_id === Number(form.asset_id))?.track_type === "Unique"
+          }
         />
 
         <button type="submit">
@@ -127,7 +163,7 @@ function AssetAllocation() {
           {allocations.map(a => (
             <tr key={a.allocation_id}>
               <td>{a.employee_id}</td>
-              <td>{a.asset_id}</td>
+              <td>{a.asset_name}</td>
               <td>{a.allocated_quantity}</td>
               <td>
                 <button onClick={() => editAllocation(a)}>Edit</button>
@@ -141,4 +177,6 @@ function AssetAllocation() {
 }
 
 export default AssetAllocation;
+
+
 

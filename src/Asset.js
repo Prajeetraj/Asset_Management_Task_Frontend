@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 
 function Asset() {
   const [assets, setAssets] = useState([]);
-  const [mode, setMode] = useState("list"); // list | add | edit
+  const [categories, setCategories] = useState([]);
+  const [allocations, setAllocations] = useState([]);
+  const [mode, setMode] = useState("list");
   const [editId, setEditId] = useState(null);
 
   const [form, setForm] = useState({
@@ -16,21 +18,44 @@ function Asset() {
     status: true
   });
 
-  // LOAD ASSETS
+  // Load Assets
   const loadAssets = () => {
     fetch("http://localhost:3001/asset")
       .then(res => res.json())
       .then(data => setAssets(data));
   };
 
+  // Load Categories
+  const loadCategories = () => {
+    fetch("http://localhost:3001/category_master")
+      .then(res => res.json())
+      .then(data => setCategories(data));
+  };
+
+  // Load Allocations
+  const loadAllocations = () => {
+    fetch("http://localhost:3001/asset-allocation")
+      .then(res => res.json())
+      .then(data => setAllocations(data));
+  };
+
   useEffect(() => {
     loadAssets();
+    loadCategories();
+    loadAllocations();
   }, []);
+
+  // Calculate available quantity for each asset
+  const getAvailableQuantity = (asset) => {
+    const allocated = allocations
+      .filter(a => a.asset_id === asset.asset_id)
+      .reduce((sum, a) => sum + Number(a.allocated_quantity), 0);
+    return asset.total_quantity - allocated;
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // auto-set qty for Unique
     if (name === "track_type" && value === "Unique") {
       setForm({ ...form, track_type: value, total_quantity: 1 });
     } else {
@@ -38,10 +63,8 @@ function Asset() {
     }
   };
 
-  // ADD ASSET
   const addAsset = async (e) => {
     e.preventDefault();
-
     const res = await fetch("http://localhost:3001/asset", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -51,43 +74,33 @@ function Asset() {
         total_quantity: Number(form.total_quantity)
       })
     });
-
     const data = await res.json();
     if (!res.ok) return alert(data.message);
-
     alert("Asset Added");
     setMode("list");
     resetForm();
     loadAssets();
   };
 
-  // EDIT CLICK
   const editAsset = (asset) => {
     setForm(asset);
     setEditId(asset.asset_id);
     setMode("edit");
   };
 
-  // UPDATE ASSET
   const updateAsset = async (e) => {
     e.preventDefault();
-
-    const res = await fetch(
-      `http://localhost:3001/asset/${editId}`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          category_id: Number(form.category_id),
-          total_quantity: Number(form.total_quantity)
-        })
-      }
-    );
-
+    const res = await fetch(`http://localhost:3001/asset/${editId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...form,
+        category_id: Number(form.category_id),
+        total_quantity: Number(form.total_quantity)
+      })
+    });
     const data = await res.json();
     if (!res.ok) return alert(data);
-
     alert("Asset Updated");
     setMode("list");
     resetForm();
@@ -121,39 +134,55 @@ function Asset() {
               <th>Name</th>
               <th>Type</th>
               <th>Total Qty</th>
+              <th>Allocated Qty</th>
+              <th>Available Qty</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {assets.map(a => (
-              <tr key={a.asset_id}>
-                <td>{a.asset_name}</td>
-                <td>{a.track_type}</td>
-                <td>{a.total_quantity}</td>
-                <td>
-                  <button onClick={() => editAsset(a)}>Edit</button>
-                </td>
-              </tr>
-            ))}
+            {assets.map(a => {
+              const allocated = allocations
+                .filter(al => al.asset_id === a.asset_id)
+                .reduce((sum, al) => sum + Number(al.allocated_quantity), 0);
+              const available = a.total_quantity - allocated;
+
+              return (
+                <tr key={a.asset_id}>
+                  <td>{a.asset_name}</td>
+                  <td>{a.track_type}</td>
+                  <td>{a.total_quantity}</td>
+                  <td>{allocated}</td>
+                  <td>{available}</td>
+                  <td>
+                    <button onClick={() => editAsset(a)}>Edit</button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
     );
   }
 
-  // ADD / EDIT FORM
   return (
     <div>
       <h2>{mode === "add" ? "Add Asset" : "Edit Asset"}</h2>
 
       <form onSubmit={mode === "add" ? addAsset : updateAsset}>
-        <input
+        <select
           name="category_id"
-          placeholder="Category ID"
           value={form.category_id}
           onChange={handleChange}
           required
-        />
+        >
+          <option value="">Select Category</option>
+          {categories.map(cat => (
+            <option key={cat.category_id} value={cat.category_id}>
+              {cat.category_name}
+            </option>
+          ))}
+        </select>
 
         <input
           name="asset_name"
@@ -210,3 +239,4 @@ function Asset() {
 }
 
 export default Asset;
+
